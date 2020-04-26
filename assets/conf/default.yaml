@@ -1,0 +1,5 @@
+---
+metric_sources:
+  - 'assets/metrics/simple.json'
+elasticsearch:
+  addr: 'localhost:9200'

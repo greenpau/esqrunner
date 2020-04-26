@@ -1,0 +1,24 @@
+[
+  {
+    "category": "Helpdesk",
+    "name": "Helpdesk Ticket Total",
+    "description": "The total number of helpdesk tickets",
+    "operation": "GET",
+    "base_index": "tickets-",
+    "index_split": "daily",
+    "dsl_function": "_count",
+    "dsl_query": {
+      "query": {
+        "bool": {
+          "must_not": [
+            {
+              "match_phrase": {
+                "classification": "internal"
+              }
+            }
+          ]
+        }
+      }
+    }
+  }
+]
