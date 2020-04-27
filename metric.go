@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	log "github.com/sirupsen/logrus"
-	"io/ioutil"
 	"path/filepath"
 )
 
@@ -37,7 +36,7 @@ func NewMetricsFromFile(configFile string) ([]*Metric, error) {
 	if confSyntax != "json" {
 		return []*Metric{}, fmt.Errorf("configuration file syntax is unsupported: %s", confSyntax)
 	}
-	content, err := ioutil.ReadFile(filepath.Join(configDir, configFile))
+	content, err := readFileBytes(filepath.Join(configDir, configFile))
 	if err != nil {
 		return []*Metric{}, err
 	}

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
-	"io/ioutil"
 	"path/filepath"
 )
 
@@ -38,7 +37,7 @@ func (r *QueryRunner) ReadInConfig(configFile string) error {
 	}
 	log.Debugf("configuration directory: %s", configDir)
 	log.Debugf("configuration syntax: %s", confSyntax)
-	content, err := ioutil.ReadFile(filepath.Join(configDir, configFile))
+	content, err := readFileBytes(filepath.Join(configDir, configFile))
 	if err != nil {
 		return err
 	}

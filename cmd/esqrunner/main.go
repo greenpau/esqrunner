@@ -73,7 +73,7 @@ func main() {
 	if isValidate {
 		client.ValidateOnly = true
 		if err := client.ValidateConfig(); err != nil {
-			fmt.Fprintf(os.Stderr, "invalid config: %s", err)
+			fmt.Fprintf(os.Stderr, "invalid config: %s\n", err)
 			os.Exit(1)
 		}
 		fmt.Fprintf(os.Stdout, "configuration is valid\n")
@@ -81,6 +81,8 @@ func main() {
 	}
 
 	if err := client.Run(); err != nil {
-		log.Fatal(err)
+		fmt.Fprintf(os.Stderr, "%s", err)
+		os.Exit(1)
 	}
+	os.Exit(0)
 }
