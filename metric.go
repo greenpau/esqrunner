@@ -2,11 +2,15 @@ package esqrunner
 
 import (
 	"encoding/json"
+	"fmt"
+	log "github.com/sirupsen/logrus"
+	"io/ioutil"
+	"path/filepath"
 )
 
-// MetricConfig is a collection of attrbutes and parameters
-// for the creation of a metric.
-type MetricConfig struct {
+// Metric is a collection of attrbutes and parameters
+// for the creation and management of a metric.
+type Metric struct {
 	Category    string           `json:"category" yaml:"category"`
 	Name        string           `json:"name" yaml:"name"`
 	Description string           `json:"description" yaml:"description"`
@@ -15,4 +19,33 @@ type MetricConfig struct {
 	IndexSplit  string           `json:"index_split" yaml:"index_split"`
 	Function    string           `json:"dsl_function" yaml:"dsl_function"`
 	Query       *json.RawMessage `json:"dsl_query" yaml:"dsl_query"`
+}
+
+// NewMetricsFromFile parses a JSON file containing metrics, and
+// return a collection of Metric instances.
+func NewMetricsFromFile(configFile string) ([]*Metric, error) {
+	log.Debugf("metric configuration file: %s", configFile)
+	configDir, configFile := filepath.Split(configFile)
+	ext := filepath.Ext(configFile)
+	confSyntax := "json"
+	switch ext {
+	case ".json":
+		log.Debugf("metric configuration syntax is json")
+	default:
+		return []*Metric{}, fmt.Errorf("configuration file type is unsupported")
+	}
+	if confSyntax != "json" {
+		return []*Metric{}, fmt.Errorf("configuration file syntax is unsupported: %s", confSyntax)
+	}
+	content, err := ioutil.ReadFile(filepath.Join(configDir, configFile))
+	if err != nil {
+		return []*Metric{}, err
+	}
+	metrics := []*Metric{}
+	err = json.Unmarshal(content, &metrics)
+	if err != nil {
+		return []*Metric{}, err
+	}
+
+	return metrics, nil
 }

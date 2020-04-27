@@ -11,6 +11,7 @@ import (
 // QueryRunner is Elasticsearch query runner.
 type QueryRunner struct {
 	Config       *RunnerConfig
+	Metrics      []*Metric
 	ValidateOnly bool
 }
 
@@ -47,6 +48,17 @@ func (r *QueryRunner) ReadInConfig(configFile string) error {
 		return err
 	}
 	r.Config = &config
+	return nil
+}
+
+// ValidateConfig validates QueryRunner configuration.
+func (r *QueryRunner) ValidateConfig() error {
+	if r.Config == nil {
+		return fmt.Errorf("configuration not found")
+	}
+	if err := r.Config.Validate(); err != nil {
+		return err
+	}
 	return nil
 }
 

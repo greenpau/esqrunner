@@ -1,4 +1,4 @@
-.PHONY: test clean qtest
+.PHONY: test clean qtest linter covdir integration coverage
 APP=esqrunner
 APP_VERSION:=$(shell cat VERSION | head -1)
 GIT_COMMIT:=$(shell git describe --dirty --always)
@@ -25,18 +25,30 @@ all:
 		cmd/$(APP)/*.go
 	@echo "Done!"
 
-test: all
+linter:
+	@echo "Running lint checks"
 	@golint -set_exit_status *.go
 	@golint -set_exit_status cmd/$(APP)/*.go
-	@echo "PASS: Golang Lint test"
 	@for f in `find ./assets -name *.y*ml`; do yamllint $$f; done
-	@echo "PASS: YAML Lint test"
-	@go test -v *.go
-	@echo "PASS: core tests"
+	@echo "PASS: lint checks"
+
+covdir:
+	@echo "Creating .coverage/ directory"
+	@mkdir -p .coverage
+
+integration: all
+	@echo "Running integration tests"
 	@./bin/$(BINARY) --config ./assets/conf/default.yaml --validate --log-level debug
 	@./bin/$(BINARY) --version
-	@echo "PASS: configuration validation"
-	@echo "OK: all tests passed!"
+
+
+test: covdir linter integration
+	@go test -v -coverprofile=.coverage/coverage.out ./*.go
+
+coverage:
+	@go tool cover -html=.coverage/coverage.out -o .coverage/coverage.html
+	@go test -covermode=count -coverprofile=.coverage/coverage.out ./*.go
+	@go tool cover -func=.coverage/coverage.out | grep -v "100.0"
 
 clean:
 	@rm -rf bin/ build/ pkg-build/
