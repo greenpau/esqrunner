@@ -19,14 +19,23 @@ func (c *RunnerConfig) Validate() error {
 	if len(c.MetricSources) == 0 {
 		return fmt.Errorf("no metric configuration files found")
 	}
-	for _, metricConfigFile := range c.MetricSources {
-		metrics, err := NewMetricsFromFile(metricConfigFile)
+	for _, confFile := range c.MetricSources {
+		metrics, err := NewMetricsFromFile(confFile)
 		if err != nil {
-			return fmt.Errorf("metric source %s parsing failed: %s", metricConfigFile, err)
+			return fmt.Errorf("metric source %s parsing failed: %s", confFile, err)
 		}
 		if len(metrics) == 0 {
-			return fmt.Errorf("metric source %s has no metrics", metricConfigFile)
+			return fmt.Errorf("metric source %s has no metrics", confFile)
 		}
+		for _, metric := range metrics {
+			if err := metric.Valid(); err != nil {
+				return fmt.Errorf(
+					"metric source %s has invalid metric: %v, error: %s",
+					confFile, metric, err,
+				)
+			}
+		}
+
 	}
 	return nil
 }

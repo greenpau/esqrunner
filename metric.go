@@ -49,3 +49,12 @@ func NewMetricsFromFile(configFile string) ([]*Metric, error) {
 
 	return metrics, nil
 }
+
+// Valid validates whether a metric definition has mandatory fields and
+// that the fields conform to a standard set in this function.
+func (m *Metric) Valid() error {
+	if m.Name == "" {
+		return fmt.Errorf("attribute Name not found")
+	}
+	return nil
+}
