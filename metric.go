@@ -1,4 +1,4 @@
-package main
+package esqrunner
 
 import (
 	"encoding/json"

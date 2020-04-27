@@ -22,11 +22,12 @@ all:
 		-X main.buildDate=$(BUILD_DATE)" \
 		-gcflags="all=-trimpath=$(GOPATH)/src" \
 		-asmflags="all=-trimpath $(GOPATH)/src" \
-		*.go
+		cmd/$(APP)/*.go
 	@echo "Done!"
 
 test: all
 	@golint -set_exit_status *.go
+	@golint -set_exit_status cmd/$(APP)/*.go
 	@echo "PASS: Golang Lint test"
 	@for f in `find ./assets -name *.y*ml`; do yamllint $$f; done
 	@echo "PASS: YAML Lint test"
