@@ -59,6 +59,7 @@ func NewElasticsearchClient(cfg *ElasticsearchConfig) (*ElasticsearchClient, err
 	return c, nil
 }
 
+// ElasticsearchInfo contains server info.
 type ElasticsearchInfo struct {
 	Version string
 }
@@ -82,6 +83,7 @@ func (c *ElasticsearchClient) Info() (*ElasticsearchInfo, error) {
 	return info, nil
 }
 
+// ElasticsearchCounter is a counter.
 type ElasticsearchCounter struct {
 	Total uint64
 }
