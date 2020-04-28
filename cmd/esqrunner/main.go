@@ -35,12 +35,14 @@ func main() {
 	var isShowVersion bool
 	var isValidate bool
 	var datePicker string
+	var isLandscape bool
 	client := esqrunner.New()
 	flag.StringVar(&configFile, "config", "", "path to configuration file")
 	flag.StringVar(&logLevel, "log-level", "info", "logging severity level")
 	flag.BoolVar(&isValidate, "validate", false, "validate configuration")
 	flag.BoolVar(&isShowVersion, "version", false, "version information")
 	flag.StringVar(&datePicker, "datepicker", "", "date pattern, e.g. last 7 days, interval 1 day")
+	flag.BoolVar(&isLandscape, "landscape", false, "landscape output")
 
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "\n%s - %s\n\n", app.Name, app.Description)
@@ -89,6 +91,8 @@ func main() {
 	if err := client.Config.AddDates(datePicker); err != nil {
 		log.Fatalf("invalid dates: %s", err)
 	}
+
+	client.Config.Output.Landscape = isLandscape
 
 	if err := client.Run(); err != nil {
 		fmt.Fprintf(os.Stderr, "%s\n", err)

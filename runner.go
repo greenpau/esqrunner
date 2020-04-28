@@ -13,6 +13,7 @@ type QueryRunner struct {
 	client       *ElasticsearchClient
 	Config       *RunnerConfig
 	Metrics      map[string][]uint64
+	MetricErrors map[string][]error
 	ValidateOnly bool
 }
 
@@ -73,6 +74,10 @@ func (r *QueryRunner) Run() error {
 		r.Metrics = make(map[string][]uint64)
 	}
 
+	if r.MetricErrors == nil {
+		r.MetricErrors = make(map[string][]error)
+	}
+
 	client, err := NewElasticsearchClient(r.Config.Elasticsearch)
 	if err != nil {
 		return err
@@ -97,36 +102,80 @@ func (r *QueryRunner) Run() error {
 			if _, exists := r.Metrics[m.ID]; !exists {
 				r.Metrics[m.ID] = []uint64{}
 			}
+			if _, exists := r.MetricErrors[m.ID]; !exists {
+				r.MetricErrors[m.ID] = []error{}
+			}
 			suffix := fmt.Sprintf("%d%02d%02d", ts.Year(), ts.Month(), ts.Day())
 			count, err := r.client.Count(m, suffix)
 			if err != nil {
-				log.Errorf("Elasticsearch query error: %s", err)
-				return err
+				r.Metrics[m.ID] = append(r.Metrics[m.ID], 0)
+				r.MetricErrors[m.ID] = append(r.MetricErrors[m.ID], err)
+				continue
 			}
 			r.Metrics[m.ID] = append(r.Metrics[m.ID], count.Total)
+			r.MetricErrors[m.ID] = append(r.MetricErrors[m.ID], nil)
 		}
 	}
 
 	var sb strings.Builder
-	line := []string{}
-	line = append(line, "Metrics")
-	for _, ts := range r.Config.Timestamps {
-		line = append(line, ts.Format("2006/01/02"))
-	}
-	line = append(line, "Metric ID")
-	sb.WriteString(strings.Join(line, "|") + "\n")
+	sp := ";"
 
-	for _, m := range r.Config.Metrics {
-		if m.Disabled {
-			continue
+	if r.Config.Output.Landscape {
+		line := []string{}
+		line = append(line, "Categories")
+		line = append(line, "Metrics")
+		for _, ts := range r.Config.Timestamps {
+			if r.Config.Output.Landscape {
+				line = append(line, ts.Format("2006/01/02"))
+			}
 		}
-		line = []string{}
-		line = append(line, m.Name)
-		for _, count := range r.Metrics[m.ID] {
-			line = append(line, fmt.Sprintf("%d", count))
+		line = append(line, "Metric ID")
+		sb.WriteString(strings.Join(line, sp) + "\n")
+
+		for _, m := range r.Config.Metrics {
+			if m.Disabled {
+				continue
+			}
+			line = []string{}
+			line = append(line, m.Category)
+			line = append(line, m.Name)
+			for i, count := range r.Metrics[m.ID] {
+				if r.MetricErrors[m.ID][i] == nil {
+					line = append(line, fmt.Sprintf("%d", count))
+				} else {
+					line = append(line, "ERR")
+				}
+			}
+			line = append(line, m.ID)
+			sb.WriteString(strings.Join(line, sp) + "\n")
 		}
-		line = append(line, m.ID)
-		sb.WriteString(strings.Join(line, "|") + "\n")
+	} else {
+		line := []string{}
+		line = append(line, "Date")
+		line = append(line, "Value")
+		line = append(line, "Category")
+		line = append(line, "Metric Name")
+		line = append(line, "Metric ID")
+		sb.WriteString(strings.Join(line, sp) + "\n")
+		for _, m := range r.Config.Metrics {
+			if m.Disabled {
+				continue
+			}
+			for i, ts := range r.Config.Timestamps {
+				line := []string{}
+				line = append(line, ts.Format("2006/01/02"))
+
+				if r.MetricErrors[m.ID][i] == nil {
+					line = append(line, fmt.Sprintf("%d", r.Metrics[m.ID][i]))
+				} else {
+					line = append(line, "ERR")
+				}
+				line = append(line, m.Category)
+				line = append(line, m.Name)
+				line = append(line, m.ID)
+				sb.WriteString(strings.Join(line, sp) + "\n")
+			}
+		}
 	}
 	fmt.Println(sb.String())
 

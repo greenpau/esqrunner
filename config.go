@@ -9,9 +9,12 @@ import (
 
 // RunnerConfig is the configuration of the QueryRunner.
 type RunnerConfig struct {
-	MetricRef     map[string]*Metric   `json:"-" yaml:"-"`
-	Metrics       []*Metric            `json:"-" yaml:"-"`
-	Timestamps    []time.Time          `json:"-" yaml:"-"`
+	MetricRef  map[string]*Metric `json:"-" yaml:"-"`
+	Metrics    []*Metric          `json:"-" yaml:"-"`
+	Timestamps []time.Time        `json:"-" yaml:"-"`
+	Output     struct {
+		Landscape bool `json:"-" yaml:"-"`
+	}
 	MetricSources []string             `json:"metric_sources" yaml:"metric_sources"`
 	Elasticsearch *ElasticsearchConfig `json:"elasticsearch" yaml:"elasticsearch"`
 }
@@ -27,6 +30,7 @@ func (c *RunnerConfig) Validate() error {
 	if err := c.Elasticsearch.ValidateConfig(); err != nil {
 		return err
 	}
+
 	if len(c.MetricSources) == 0 {
 		return fmt.Errorf("no metric configuration files found")
 	}
@@ -69,16 +73,13 @@ func (c *RunnerConfig) AddDates(s string) error {
 		interval, _ := strconv.Atoi(m[2])
 		if days != 0 && interval != 0 {
 			for i := days - 1; i >= 0; i-- {
-				t := time.Now().UTC().Add(time.Duration(-1*i*interval*24) * time.Hour)
+				//t := time.Now().UTC().Add(time.Duration(-1*i*interval*24) * time.Hour)
+				t := time.Now().Add(time.Duration(-1*i*interval*24) * time.Hour)
 				c.Timestamps = append(c.Timestamps, t)
 			}
 		}
 		return nil
 	}
-
-	//t := time.Now().UTC().Add(time.Duration(-1*hours) * time.Hour)
-	//dt := fmt.Sprintf("%d%02d%02d", t.Year(), t.Month(), t.Day())
-	//c.Dates = append(c.Dates, dt)
 
 	return fmt.Errorf("unsupported dates pattern: %s", s)
 }
