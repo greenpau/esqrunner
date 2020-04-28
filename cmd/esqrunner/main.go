@@ -34,11 +34,13 @@ func main() {
 	var logLevel string
 	var isShowVersion bool
 	var isValidate bool
+	var datePicker string
 	client := esqrunner.New()
 	flag.StringVar(&configFile, "config", "", "path to configuration file")
 	flag.StringVar(&logLevel, "log-level", "info", "logging severity level")
 	flag.BoolVar(&isValidate, "validate", false, "validate configuration")
 	flag.BoolVar(&isShowVersion, "version", false, "version information")
+	flag.StringVar(&datePicker, "datepicker", "", "date pattern, e.g. last 7 days, interval 1 day")
 
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "\n%s - %s\n\n", app.Name, app.Description)
@@ -80,8 +82,16 @@ func main() {
 		os.Exit(0)
 	}
 
+	if datePicker == "" {
+		log.Fatalf("datepicker is required")
+	}
+
+	if err := client.Config.AddDates(datePicker); err != nil {
+		log.Fatalf("invalid dates: %s", err)
+	}
+
 	if err := client.Run(); err != nil {
-		fmt.Fprintf(os.Stderr, "%s", err)
+		fmt.Fprintf(os.Stderr, "%s\n", err)
 		os.Exit(1)
 	}
 	os.Exit(0)

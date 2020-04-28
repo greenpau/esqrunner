@@ -23,6 +23,7 @@ func init() {
 // Metric is a collection of attrbutes and parameters
 // for the creation and management of a metric.
 type Metric struct {
+	ID          string           `json:"id" yaml:"id"`
 	Category    string           `json:"category" yaml:"category"`
 	Name        string           `json:"name" yaml:"name"`
 	Description string           `json:"description" yaml:"description"`
@@ -31,6 +32,7 @@ type Metric struct {
 	IndexSplit  string           `json:"index_split" yaml:"index_split"`
 	Function    string           `json:"dsl_function" yaml:"dsl_function"`
 	Query       *json.RawMessage `json:"dsl_query" yaml:"dsl_query"`
+	Disabled    bool             `json:"disabled" yaml:"disabled"`
 }
 
 // NewMetricsFromFile parses a JSON file containing metrics, and
@@ -65,6 +67,9 @@ func NewMetricsFromFile(configFile string) ([]*Metric, error) {
 // Valid validates whether a metric definition has mandatory fields and
 // that the fields conform to a standard set in this function.
 func (m *Metric) Valid() error {
+	if m.ID == "" {
+		return fmt.Errorf("attribute ID not set in %v", *m)
+	}
 	if m.Name == "" {
 		return fmt.Errorf("attribute Name not set in %v", *m)
 	}

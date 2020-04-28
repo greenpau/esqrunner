@@ -18,5 +18,13 @@ func TestRunner(t *testing.T) {
 		t.Fatalf("error validating config: %s", err)
 	}
 
+	expConfigMetrics := 1
+	if len(r.Config.Metrics) != expConfigMetrics {
+		t.Fatalf(
+			"error validating config, expected %d metrics, received: %d",
+			expConfigMetrics, len(r.Config.Metrics),
+		)
+	}
+
 	t.Logf("Elasticsearch address: %s", r.Config.Elasticsearch.Address)
 }
