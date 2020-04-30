@@ -252,7 +252,7 @@ func (r *QueryRunner) Output() (string, error) {
 			sb.WriteString(r.offset(2) + "{\n")
 			sb.WriteString(r.offset(3) + fmt.Sprintf(`"%s": {`, m.ID) + "\n")
 			sb.WriteString(r.offset(4) + `"counters": [`)
-			for i, _ := range r.Config.Timestamps {
+			for i := range r.Config.Timestamps {
 				isLastElement := false
 				if len(r.Config.Timestamps)-1 == i {
 					isLastElement = true
