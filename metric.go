@@ -23,16 +23,17 @@ func init() {
 // Metric is a collection of attrbutes and parameters
 // for the creation and management of a metric.
 type Metric struct {
-	ID          string           `json:"id" yaml:"id"`
-	Category    string           `json:"category" yaml:"category"`
-	Name        string           `json:"name" yaml:"name"`
-	Description string           `json:"description" yaml:"description"`
-	Operation   string           `json:"operation" yaml:"operation"`
-	BaseIndex   string           `json:"base_index" yaml:"base_index"`
-	IndexSplit  string           `json:"index_split" yaml:"index_split"`
-	Function    string           `json:"dsl_function" yaml:"dsl_function"`
-	Query       *json.RawMessage `json:"dsl_query" yaml:"dsl_query"`
-	Disabled    bool             `json:"disabled" yaml:"disabled"`
+	ID          string            `json:"id" yaml:"id"`
+	Category    string            `json:"category" yaml:"category"`
+	Name        string            `json:"name" yaml:"name"`
+	Description string            `json:"description" yaml:"description"`
+	Metadata    map[string]string `json:"metadata" yaml:"metadata"`
+	Operation   string            `json:"operation" yaml:"operation"`
+	BaseIndex   string            `json:"base_index" yaml:"base_index"`
+	IndexSplit  string            `json:"index_split" yaml:"index_split"`
+	Function    string            `json:"dsl_function" yaml:"dsl_function"`
+	Query       *json.RawMessage  `json:"dsl_query" yaml:"dsl_query"`
+	Disabled    bool              `json:"disabled" yaml:"disabled"`
 }
 
 // NewMetricsFromFile parses a JSON file containing metrics, and
@@ -91,27 +92,26 @@ func (m *Metric) Valid() error {
 	if m.Function == "" {
 		return fmt.Errorf("attribute Function not set in %v", *m)
 	}
-
+	if m.Metadata == nil {
+		m.Metadata = make(map[string]string)
+	}
 	if _, supported := supportedOperations[m.Operation]; !supported {
 		return fmt.Errorf(
 			"attribute Operation has unsupported value: %s, metric: %v",
 			m.Operation, *m,
 		)
 	}
-
 	if _, supported := supportedIndexSplit[m.IndexSplit]; !supported {
 		return fmt.Errorf(
 			"attribute IndexSplit has unsupported value: %s, metric: %v",
 			m.IndexSplit, *m,
 		)
 	}
-
 	if _, supported := supportedFuctions[m.Function]; !supported {
 		return fmt.Errorf(
 			"attribute Function has unsupported value: %s, metric: %v",
 			m.Function, *m,
 		)
 	}
-
 	return nil
 }

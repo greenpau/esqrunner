@@ -2,6 +2,7 @@ package esqrunner
 
 import (
 	"fmt"
+	"github.com/greenpau/go-calculator"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
 	"path/filepath"
@@ -118,65 +119,106 @@ func (r *QueryRunner) Run() error {
 	}
 
 	var sb strings.Builder
-	sp := ";"
 
-	if r.Config.Output.Landscape {
-		line := []string{}
-		line = append(line, "Categories")
-		line = append(line, "Metrics")
-		for _, ts := range r.Config.Timestamps {
-			if r.Config.Output.Landscape {
+	if r.Config.Output.Format == "csv" {
+		sp := ";"
+		if r.Config.Output.Landscape {
+			line := []string{}
+			line = append(line, "Categories")
+			line = append(line, "Metrics")
+			for _, k := range r.Config.Metadata.FieldList {
+				line = append(line, strings.Title(k))
+			}
+			for _, ts := range r.Config.Timestamps {
 				line = append(line, ts.Format("2006/01/02"))
 			}
-		}
-		line = append(line, "Metric ID")
-		sb.WriteString(strings.Join(line, sp) + "\n")
-
-		for _, m := range r.Config.Metrics {
-			if m.Disabled {
-				continue
-			}
-			line = []string{}
-			line = append(line, m.Category)
-			line = append(line, m.Name)
-			for i, count := range r.Metrics[m.ID] {
-				if r.MetricErrors[m.ID][i] == nil {
-					line = append(line, fmt.Sprintf("%d", count))
-				} else {
-					line = append(line, "ERR")
-				}
-			}
-			line = append(line, m.ID)
+			line = append(line, "Total")
+			line = append(line, "Max")
+			line = append(line, "Min")
+			line = append(line, "Average")
+			line = append(line, "Median")
+			line = append(line, "Mode")
+			line = append(line, "Range")
+			line = append(line, "Metric ID")
 			sb.WriteString(strings.Join(line, sp) + "\n")
-		}
-	} else {
-		line := []string{}
-		line = append(line, "Date")
-		line = append(line, "Value")
-		line = append(line, "Category")
-		line = append(line, "Metric Name")
-		line = append(line, "Metric ID")
-		sb.WriteString(strings.Join(line, sp) + "\n")
-		for _, m := range r.Config.Metrics {
-			if m.Disabled {
-				continue
-			}
-			for i, ts := range r.Config.Timestamps {
-				line := []string{}
-				line = append(line, ts.Format("2006/01/02"))
 
-				if r.MetricErrors[m.ID][i] == nil {
-					line = append(line, fmt.Sprintf("%d", r.Metrics[m.ID][i]))
-				} else {
-					line = append(line, "ERR")
+			for _, m := range r.Config.Metrics {
+				if m.Disabled {
+					continue
 				}
+				line = []string{}
 				line = append(line, m.Category)
 				line = append(line, m.Name)
+
+				for _, k := range r.Config.Metadata.FieldList {
+					if v, exists := m.Metadata[k]; exists {
+						line = append(line, fmt.Sprintf("%s", v))
+					} else {
+						line = append(line, "-")
+					}
+				}
+
+				for i, count := range r.Metrics[m.ID] {
+					if r.MetricErrors[m.ID][i] == nil {
+						line = append(line, fmt.Sprintf("%d", count))
+					} else {
+						line = append(line, "-")
+					}
+				}
+				calc := calculator.NewUint64(r.Metrics[m.ID])
+				calc.RunAll()
+				line = append(line, fmt.Sprintf("%.2f", calc.Register.Total))
+				line = append(line, fmt.Sprintf("%.2f", calc.Register.MaxValue))
+				line = append(line, fmt.Sprintf("%.2f", calc.Register.MinValue))
+				line = append(line, fmt.Sprintf("%.2f", calc.Register.Mean))
+				line = append(line, fmt.Sprintf("%.2f", calc.Register.Median))
+				line = append(line, fmt.Sprintf("%v", calc.Register.Modes))
+				line = append(line, fmt.Sprintf("%.2f", calc.Register.Range))
 				line = append(line, m.ID)
 				sb.WriteString(strings.Join(line, sp) + "\n")
 			}
+		} else {
+			line := []string{}
+			line = append(line, "Date")
+			line = append(line, "Value")
+			line = append(line, "Category")
+			line = append(line, "Metric Name")
+			for _, k := range r.Config.Metadata.FieldList {
+				line = append(line, strings.Title(k))
+			}
+
+			line = append(line, "Metric ID")
+			sb.WriteString(strings.Join(line, sp) + "\n")
+			for _, m := range r.Config.Metrics {
+				if m.Disabled {
+					continue
+				}
+				for i, ts := range r.Config.Timestamps {
+					line := []string{}
+					line = append(line, ts.Format("2006/01/02"))
+
+					if r.MetricErrors[m.ID][i] == nil {
+						line = append(line, fmt.Sprintf("%d", r.Metrics[m.ID][i]))
+					} else {
+						line = append(line, "-")
+					}
+					line = append(line, m.Category)
+					line = append(line, m.Name)
+					for _, k := range r.Config.Metadata.FieldList {
+						if v, exists := m.Metadata[k]; exists {
+							line = append(line, fmt.Sprintf("%s", v))
+						} else {
+							line = append(line, "-")
+						}
+					}
+
+					line = append(line, m.ID)
+					sb.WriteString(strings.Join(line, sp) + "\n")
+				}
+			}
 		}
 	}
+
 	fmt.Println(sb.String())
 
 	return nil
