@@ -36,6 +36,7 @@ func main() {
 	var isValidate bool
 	var datePicker string
 	var isLandscape bool
+	var outputDir, outputFilePrefix, outputFormat string
 	client := esqrunner.New()
 	flag.StringVar(&configFile, "config", "", "path to configuration file")
 	flag.StringVar(&logLevel, "log-level", "info", "logging severity level")
@@ -43,6 +44,10 @@ func main() {
 	flag.BoolVar(&isShowVersion, "version", false, "version information")
 	flag.StringVar(&datePicker, "datepicker", "", "date pattern, e.g. last 7 days, interval 1 day")
 	flag.BoolVar(&isLandscape, "landscape", false, "landscape output")
+
+	flag.StringVar(&outputFormat, "output-format", "csv", "output format")
+	flag.StringVar(&outputDir, "output-dir", "", "output directory")
+	flag.StringVar(&outputFilePrefix, "output-file-prefix", "", "output file prefix")
 
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "\n%s - %s\n\n", app.Name, app.Description)
@@ -92,11 +97,35 @@ func main() {
 		log.Fatalf("invalid dates: %s", err)
 	}
 
-	client.Config.Output.Landscape = isLandscape
-
 	if err := client.Run(); err != nil {
 		fmt.Fprintf(os.Stderr, "%s\n", err)
 		os.Exit(1)
 	}
+
+	if outputDir != "" || outputFilePrefix != "" {
+		outputPrefix, err := client.GetOutputFilePrefix(outputDir, outputFilePrefix)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s\n", err)
+			os.Exit(1)
+		}
+		fmt.Fprintf(os.Stderr, "Output file prefix: %s\n", outputPrefix)
+		outputFiles, err := client.WriteToFiles(outputPrefix)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s\n", err)
+			os.Exit(1)
+		}
+		for _, f := range outputFiles {
+			fmt.Fprintf(os.Stderr, "Wrote data to %s\n", f)
+		}
+		os.Exit(0)
+	}
+	client.Config.Output.Landscape = isLandscape
+	client.Config.Output.Format = outputFormat
+	out, err := client.Output()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s\n", err)
+		os.Exit(1)
+	}
+	fmt.Fprintf(os.Stdout, "%s\n", out)
 	os.Exit(0)
 }

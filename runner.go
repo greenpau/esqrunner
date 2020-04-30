@@ -1,10 +1,13 @@
 package esqrunner
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/greenpau/go-calculator"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
+	"io/ioutil"
+	"math/rand"
 	"path/filepath"
 	"strings"
 )
@@ -117,9 +120,12 @@ func (r *QueryRunner) Run() error {
 			r.MetricErrors[m.ID] = append(r.MetricErrors[m.ID], nil)
 		}
 	}
+	return nil
+}
 
+// Output returns metrics data.
+func (r *QueryRunner) Output() (string, error) {
 	var sb strings.Builder
-
 	if r.Config.Output.Format == "csv" {
 		sp := ";"
 		if r.Config.Output.Landscape {
@@ -137,7 +143,7 @@ func (r *QueryRunner) Run() error {
 			line = append(line, "Min")
 			line = append(line, "Average")
 			line = append(line, "Median")
-			line = append(line, "Mode")
+			line = append(line, "Modes")
 			line = append(line, "Range")
 			line = append(line, "Metric ID")
 			sb.WriteString(strings.Join(line, sp) + "\n")
@@ -219,7 +225,164 @@ func (r *QueryRunner) Run() error {
 		}
 	}
 
-	fmt.Println(sb.String())
+	if r.Config.Output.Format == "json" || r.Config.Output.Format == "js" {
+		if r.Config.Output.Format == "js" {
+			sb.WriteString("var metricsDataset = ")
+		}
+		sb.WriteString("{\n")
+		metricDefinitions, err := json.MarshalIndent(r.Config.Metrics, r.offset(1), r.offset(1))
+		if err != nil {
+			return "", err
+		}
+		sb.WriteString(r.offset(1) + `"metric_definitions": ` + string(metricDefinitions) + ",\n")
+		metricTimestamps := []string{}
+		for _, ts := range r.Config.Timestamps {
+			metricTimestamps = append(metricTimestamps, fmt.Sprintf("%d000", ts.Unix()))
+		}
+		sb.WriteString(r.offset(1) + `"timestamps": [` + strings.Join(metricTimestamps, ", ") + "],\n")
+		sb.WriteString(r.offset(1) + `"metrics": [` + "\n")
+		for j, m := range r.Config.Metrics {
+			isLastMetricElement := false
+			if len(r.Config.Metrics)-1 == j {
+				isLastMetricElement = true
+			}
+			if m.Disabled {
+				continue
+			}
+			sb.WriteString(r.offset(2) + "{\n")
+			sb.WriteString(r.offset(3) + fmt.Sprintf(`"%s": {`, m.ID) + "\n")
+			sb.WriteString(r.offset(4) + `"counters": [`)
+			for i, _ := range r.Config.Timestamps {
+				isLastElement := false
+				if len(r.Config.Timestamps)-1 == i {
+					isLastElement = true
+				}
+				if r.MetricErrors[m.ID][i] == nil {
+					sb.WriteString(fmt.Sprintf("%d", r.Metrics[m.ID][i]))
+				} else {
+					sb.WriteString("null")
+				}
+				if !isLastElement {
+					sb.WriteString(", ")
+				}
+			}
+			sb.WriteString("],\n")
+			calc := calculator.NewUint64(r.Metrics[m.ID])
+			calc.RunAll()
+			sb.WriteString(r.offset(4) + fmt.Sprintf(`"total": %.2f,`, calc.Register.Total) + "\n")
+			sb.WriteString(r.offset(4) + fmt.Sprintf(`"max": %.2f,`, calc.Register.MaxValue) + "\n")
+			sb.WriteString(r.offset(4) + fmt.Sprintf(`"min": %.2f,`, calc.Register.MinValue) + "\n")
+			sb.WriteString(r.offset(4) + fmt.Sprintf(`"mean": %.2f,`, calc.Register.Mean) + "\n")
+			sb.WriteString(r.offset(4) + fmt.Sprintf(`"median": %.2f,`, calc.Register.Median) + "\n")
+			sb.WriteString(r.offset(4) + `"modes": [`)
+			if len(calc.Register.Modes) == 1000000 {
+				rml := len(calc.Register.Modes) - 1
+				for ri, rm := range calc.Register.Modes {
+					sb.WriteString(fmt.Sprintf("%.2f", rm))
+					if rml != ri {
+						sb.WriteString(", ")
+					}
+				}
+			}
+			sb.WriteString("],\n")
+			sb.WriteString(r.offset(4) + fmt.Sprintf(`"range": %.2f`, calc.Register.Range) + "\n")
 
-	return nil
+			sb.WriteString(r.offset(3) + "}\n")
+			if !isLastMetricElement {
+				sb.WriteString(r.offset(2) + "},\n")
+			} else {
+				sb.WriteString(r.offset(2) + "}\n")
+			}
+			//sb.WriteString("]\n")
+		}
+
+		//			sb.WriteString(r.offset(2) + fmt.Sprintf("%d", ts.Unix()) + "000,\n")
+
+		//sb.WriteString(r.offset(2) + "]\n")
+		sb.WriteString(r.offset(1) + "]\n")
+		sb.WriteString("}\n")
+	}
+
+	return sb.String(), nil
+}
+
+func (r *QueryRunner) offset(j int) string {
+	var offset string
+	for i := 0; i < j; i++ {
+		offset += r.Config.Output.Offset
+	}
+	return offset
+}
+
+// GetOutputFilePrefix return output fila path prefix.
+func (r *QueryRunner) GetOutputFilePrefix(outputDir, outputFilePrefix string) (string, error) {
+	var fp string
+	var err error
+	if outputDir == "" {
+		outputDir, err = ioutil.TempDir("", "esqrunner-")
+		if err != nil {
+			return fp, err
+		}
+	}
+	if outputFilePrefix == "" {
+		chars := []rune("abcdefghijklmnopqrstuvwxyz0123456789")
+		length := 8
+		var b strings.Builder
+		for i := 0; i < length; i++ {
+			b.WriteRune(chars[rand.Intn(len(chars))])
+		}
+		outputFilePrefix = b.String() + "_"
+	}
+	return filepath.Join(outputDir, outputFilePrefix), nil
+}
+
+// WriteToFiles outputs data in various formats, e.g. JSON, CSV, etc.
+func (r *QueryRunner) WriteToFiles(fp string) ([]string, error) {
+	outputFiles := []string{}
+	r.Config.Output.Format = "csv"
+	r.Config.Output.Landscape = true
+	out, err := r.Output()
+	if err != nil {
+		return outputFiles, err
+	}
+	outputFile := fmt.Sprintf("%s_landscape.%s", fp, r.Config.Output.Format)
+	if err := writeToFile(outputFile, out); err != nil {
+		return outputFiles, err
+	}
+	outputFiles = append(outputFiles, outputFile)
+
+	r.Config.Output.Landscape = false
+	out, err = r.Output()
+	if err != nil {
+		return outputFiles, err
+	}
+	outputFile = fmt.Sprintf("%s_portrait.%s", fp, r.Config.Output.Format)
+	if err := writeToFile(outputFile, out); err != nil {
+		return outputFiles, err
+	}
+	outputFiles = append(outputFiles, outputFile)
+
+	r.Config.Output.Format = "json"
+	out, err = r.Output()
+	if err != nil {
+		return outputFiles, err
+	}
+	outputFile = fmt.Sprintf("%s.%s", fp, r.Config.Output.Format)
+	if err := writeToFile(outputFile, out); err != nil {
+		return outputFiles, err
+	}
+	outputFiles = append(outputFiles, outputFile)
+
+	r.Config.Output.Format = "js"
+	out, err = r.Output()
+	if err != nil {
+		return outputFiles, err
+	}
+	outputFile = fmt.Sprintf("%s.%s", fp, r.Config.Output.Format)
+	if err := writeToFile(outputFile, out); err != nil {
+		return outputFiles, err
+	}
+	outputFiles = append(outputFiles, outputFile)
+
+	return outputFiles, nil
 }

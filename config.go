@@ -17,6 +17,7 @@ type RunnerConfig struct {
 	Output     struct {
 		Landscape bool   `json:"-" yaml:"-"`
 		Format    string `json:"-" yaml:"-"`
+		Offset    string `json:"-" yaml:"-"`
 	}
 	MetricSources []string             `json:"metric_sources" yaml:"metric_sources"`
 	Elasticsearch *ElasticsearchConfig `json:"elasticsearch" yaml:"elasticsearch"`
@@ -59,6 +60,10 @@ func (c *RunnerConfig) Validate() error {
 
 	if c.Metadata.Fields == nil {
 		c.Metadata.Fields = make(map[string]int)
+	}
+
+	if c.Output.Offset == "" {
+		c.Output.Offset = "  "
 	}
 
 	for _, confFile := range c.MetricSources {
